@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from TreeNode import treeNode
+from libs.TreeNode import treeNode
 
 
 def create_tree(data_set, min_support=1):
