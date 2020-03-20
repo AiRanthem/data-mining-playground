@@ -1,0 +1,6 @@
+该数据集包含了5个属性：
+& Sepal.Length（花萼长度），单位是cm;
+& Sepal.Width（花萼宽度），单位是cm;
+& Petal.Length（花瓣长度），单位是cm;
+& Petal.Width（花瓣宽度），单位是cm;
+& 种类：Iris Setosa（山鸢尾）、Iris Versicolour（杂色鸢尾），以及Iris Virginica（维吉尼亚鸢尾）。
