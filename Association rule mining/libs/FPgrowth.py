@@ -1,136 +1,278 @@
-# -*- coding: utf-8 -*-
-
-from libs.TreeNode import treeNode
+import itertools
 
 
-def create_tree(data_set, min_support=1):
+class FPNode(object):
     """
-    创建FP树
-    :param data_set: 数据集
-    :param min_support: 最小支持度
-    :return:
+    A node in the FP tree.
     """
-    freq_items = {}  # 频繁项集
-    for trans in data_set:  # 第一次遍历数据集
-        for item in trans:
-            freq_items[item] = freq_items.get(item, 0) + data_set[trans]
 
-    header_table = {k: v for (k, v) in freq_items.iteritems() if v >= min_support}  # 创建头指针表
-    # for key in header_table:
-    #     print key, header_table[key]
+    def __init__(self, value, count, parent):
+        """
+        Create the node.
+        """
+        self.value = value
+        self.count = count
+        self.parent = parent
+        self.link = None
+        self.children = []
 
-    # 无频繁项集
-    if len(header_table) == 0:
-        return None, None
-    for k in header_table:
-        header_table[k] = [header_table[k], None]  # 添加头指针表指向树中的数据
-    # 创建树过程
-    ret_tree = treeNode('Null Set', 1, None)  # 根节点
+    def has_child(self, value):
+        """
+        Check if node has a particular child node.
+        """
+        for node in self.children:
+            if node.value == value:
+                return True
 
-    # 第二次遍历数据集
-    for trans, count in data_set.items():
-        local_data = {}
-        for item in trans:
-            if header_table.get(item, 0):
-                local_data[item] = header_table[item][0]
-        if len(local_data) > 0:
-            ##############################################################################################
-            # 这里修改机器学习实战中的排序代码：
-            ordered_items = [v[0] for v in sorted(local_data.items(), key=lambda kv: (-kv[1], kv[0]))]
-            ##############################################################################################
-            update_tree(ordered_items, ret_tree, header_table, count)  # populate tree with ordered freq itemset
-    return ret_tree, header_table
+        return False
+
+    def get_child(self, value):
+        """
+        Return a child node with a particular value.
+        """
+        for node in self.children:
+            if node.value == value:
+                return node
+
+        return None
+
+    def add_child(self, value):
+        """
+        Add a node as a child node.
+        """
+        child = FPNode(value, 1, self)
+        self.children.append(child)
+        return child
 
 
-def update_tree(items, in_tree, header_table, count):
-    '''
-    :param items: 元素项
-    :param in_tree: 检查当前节点
-    :param header_table:
-    :param count:
-    :return:
-    '''
-    if items[0] in in_tree.children:  # check if ordered_items[0] in ret_tree.children
-        in_tree.children[items[0]].increase(count)  # incrament count
-    else:  # add items[0] to in_tree.children
-        in_tree.children[items[0]] = treeNode(items[0], count, in_tree)
-        if header_table[items[0]][1] is None:  # update header table
-            header_table[items[0]][1] = in_tree.children[items[0]]
+class FPTree(object):
+    """
+    A frequent pattern tree.
+    """
+
+    def __init__(self, transactions, threshold, root_value, root_count):
+        """
+        Initialize the tree.
+        """
+        self.frequent = self.find_frequent_items(transactions, threshold)
+        self.headers = self.build_header_table(self.frequent)
+        self.root = self.build_fptree(
+            transactions, root_value,
+            root_count, self.frequent, self.headers)
+
+    @staticmethod
+    def find_frequent_items(transactions, threshold):
+        """
+        Create a dictionary of items with occurrences above the threshold.
+        """
+        items = {}
+
+        for transaction in transactions:
+            for item in transaction:
+                if item in items:
+                    items[item] += 1
+                else:
+                    items[item] = 1
+
+        for key in list(items.keys()):
+            if items[key] < threshold:
+                del items[key]
+
+        return items
+
+    @staticmethod
+    def build_header_table(frequent):
+        """
+        Build the header table.
+        """
+        headers = {}
+        for key in frequent.keys():
+            headers[key] = None
+
+        return headers
+
+    def build_fptree(self, transactions, root_value,
+                     root_count, frequent, headers):
+        """
+        Build the FP tree and return the root node.
+        """
+        root = FPNode(root_value, root_count, None)
+
+        for transaction in transactions:
+            sorted_items = [x for x in transaction if x in frequent]
+            sorted_items.sort(key=lambda x: frequent[x], reverse=True)
+            if len(sorted_items) > 0:
+                self.insert_tree(sorted_items, root, headers)
+
+        return root
+
+    def insert_tree(self, items, node, headers):
+        """
+        Recursively grow FP tree.
+        """
+        first = items[0]
+        child = node.get_child(first)
+        if child is not None:
+            child.count += 1
         else:
-            update_header(header_table[items[0]][1], in_tree.children[items[0]])
-    if len(items) > 1:  # call update_tree() with remaining ordered items
-        update_tree(items[1::], in_tree.children[items[0]], header_table, count)
+            # Add new child.
+            child = node.add_child(first)
+
+            # Link it to header structure.
+            if headers[first] is None:
+                headers[first] = child
+            else:
+                current = headers[first]
+                while current.link is not None:
+                    current = current.link
+                current.link = child
+
+        # Call function recursively.
+        remaining_items = items[1:]
+        if len(remaining_items) > 0:
+            self.insert_tree(remaining_items, child, headers)
+
+    def tree_has_single_path(self, node):
+        """
+        If there is a single path in the tree,
+        return True, else return False.
+        """
+        num_children = len(node.children)
+        if num_children > 1:
+            return False
+        elif num_children == 0:
+            return True
+        else:
+            return True and self.tree_has_single_path(node.children[0])
+
+    def mine_patterns(self, threshold):
+        """
+        Mine the constructed FP tree for frequent patterns.
+        """
+        if self.tree_has_single_path(self.root):
+            return self.generate_pattern_list()
+        else:
+            return self.zip_patterns(self.mine_sub_trees(threshold))
+
+    def zip_patterns(self, patterns):
+        """
+        Append suffix to patterns in dictionary if
+        we are in a conditional FP tree.
+        """
+        suffix = self.root.value
+
+        if suffix is not None:
+            # We are in a conditional tree.
+            new_patterns = {}
+            for key in patterns.keys():
+                new_patterns[tuple(sorted(list(key) + [suffix]))] = patterns[key]
+
+            return new_patterns
+
+        return patterns
+
+    def generate_pattern_list(self):
+        """
+        Generate a list of patterns with support counts.
+        """
+        patterns = {}
+        items = self.frequent.keys()
+
+        # If we are in a conditional tree,
+        # the suffix is a pattern on its own.
+        if self.root.value is None:
+            suffix_value = []
+        else:
+            suffix_value = [self.root.value]
+            patterns[tuple(suffix_value)] = self.root.count
+
+        for i in range(1, len(items) + 1):
+            for subset in itertools.combinations(items, i):
+                pattern = tuple(sorted(list(subset) + suffix_value))
+                patterns[pattern] = \
+                    min([self.frequent[x] for x in subset])
+
+        return patterns
+
+    def mine_sub_trees(self, threshold):
+        """
+        Generate subtrees and mine them for patterns.
+        """
+        patterns = {}
+        mining_order = sorted(self.frequent.keys(),
+                              key=lambda x: self.frequent[x])
+
+        # Get items in tree in reverse order of occurrences.
+        for item in mining_order:
+            suffixes = []
+            conditional_tree_input = []
+            node = self.headers[item]
+
+            # Follow node links to get a list of
+            # all occurrences of a certain item.
+            while node is not None:
+                suffixes.append(node)
+                node = node.link
+
+            # For each occurrence of the item, 
+            # trace the path back to the root node.
+            for suffix in suffixes:
+                frequency = suffix.count
+                path = []
+                parent = suffix.parent
+
+                while parent.parent is not None:
+                    path.append(parent.value)
+                    parent = parent.parent
+
+                for i in range(frequency):
+                    conditional_tree_input.append(path)
+
+            # Now we have the input for a subtree,
+            # so construct it and grab the patterns.
+            subtree = FPTree(conditional_tree_input, threshold,
+                             item, self.frequent[item])
+            subtree_patterns = subtree.mine_patterns(threshold)
+
+            # Insert subtree patterns into main patterns dictionary.
+            for pattern in subtree_patterns.keys():
+                if pattern in patterns:
+                    patterns[pattern] += subtree_patterns[pattern]
+                else:
+                    patterns[pattern] = subtree_patterns[pattern]
+
+        return patterns
 
 
-def update_header(node_test, target_node):
-    '''
-    :param node_test:
-    :param target_node:
-    :return:
-    '''
-    while node_test.node_link is not None:  # Do not use recursion to traverse a linked list!
-        node_test = node_test.node_link
-    node_test.node_link = target_node
+def find_frequent_patterns(transactions, support_threshold):
+    """
+    Given a set of transactions, find the patterns in it
+    over the specified support threshold.
+    """
+    tree = FPTree(transactions, support_threshold, None, None)
+    return tree.mine_patterns(support_threshold)
 
 
-def ascend_tree(leaf_node, pre_fix_path):
-    '''
-    遍历父节点，找到路径
-    :param leaf_node:
-    :param pre_fix_path:
-    :return:
-    '''
-    if leaf_node.parent is not None:
-        pre_fix_path.append(leaf_node.name)
-        ascend_tree(leaf_node.parent, pre_fix_path)
+def generate_association_rules(patterns, confidence_threshold):
+    """
+    Given a set of frequent itemsets, return a dict
+    of association rules in the form
+    {(left): ((right), confidence)}
+    """
+    rules = {}
+    for itemset in patterns.keys():
+        upper_support = patterns[itemset]
 
+        for i in range(1, len(itemset)):
+            for antecedent in itertools.combinations(itemset, i):
+                antecedent = tuple(sorted(antecedent))
+                consequent = tuple(sorted(set(itemset) - set(antecedent)))
 
-def find_pre_fix_path(base_pat, tree_node):
-    '''
-    创建前缀路径
-    :param base_pat: 频繁项
-    :param treeNode: FP树中对应的第一个节点
-    :return:
-    '''
-    # 条件模式基
-    cond_pats = {}
-    while tree_node is not None:
-        pre_fix_path = []
-        ascend_tree(tree_node, pre_fix_path)
-        if len(pre_fix_path) > 1:
-            cond_pats[frozenset(pre_fix_path[1:])] = tree_node.count
-        tree_node = tree_node.node_link
-    return cond_pats
+                if antecedent in patterns:
+                    lower_support = patterns[antecedent]
+                    confidence = float(upper_support) / lower_support
 
+                    if confidence >= confidence_threshold:
+                        rules[antecedent] = (consequent, confidence)
 
-def mine_tree(in_tree, header_table, min_support, pre_fix, freq_items):
-    '''
-    挖掘频繁项集
-    :param in_tree:
-    :param header_table:
-    :param min_support:
-    :param pre_fix:
-    :param freq_items:
-    :return:
-    '''
-
-    # 从小到大排列table中的元素，为遍历寻找频繁集合使用
-    bigL = [v[0] for v in sorted(header_table.items(), key=lambda p: p[1])]  # (sort header table)
-    for base_pat in bigL:  # start from bottom of header table
-        new_freq_set = pre_fix.copy()
-        new_freq_set.add(base_pat)
-        if len(new_freq_set) > 0:
-            freq_items[frozenset(new_freq_set)] = header_table[base_pat][0]
-        cond_patt_bases = find_pre_fix_path(base_pat, header_table[base_pat][1])
-        my_cond_tree, my_head = create_tree(cond_patt_bases, min_support)
-
-        if my_head is not None:
-            mine_tree(my_cond_tree, my_head, min_support, new_freq_set, freq_items)
-
-
-def fp_growth(data_set, min_support=1):
-    my_fp_tree, my_header_tab = create_tree(data_set, min_support)
-    # my_fp_tree.disp()
-    freq_items = {}
-    mine_tree(my_fp_tree, my_header_tab, min_support, set([]), freq_items)
-    return freq_items
+    return rules
