@@ -1,5 +1,7 @@
 <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=default"></script>
-
+# TODO
+1. 修改公式显示脱离脚本
+2. 重写使用工具库函数的代码，改为使用sklearn
 # 概念
 $$Support(X,Y) = P(XY) = \frac{number(XY)}{num(All Samples)}$$
 $$Confidence(X \Leftarrow Y) = P(X|Y)=P(XY)/P(Y)$$
