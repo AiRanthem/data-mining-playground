@@ -52,7 +52,6 @@ pd.concat(objs, axis=0, join='outer', join_axes=None, ignore_index=False,
 # join：默认为outer，接收‘inner’或‘outer’，表示取交集或并集；
 
 # 联表，主键合并
-
 pd.merge(left, right, how='inner', on=None, left_on=None, right_on=None,left_index=False, 
          right_index=False,sort=False,suffixes=('_x', '_y'), copy=True,
          indicator=False,validate=None)
@@ -61,13 +60,26 @@ pd.merge(left, right, how='inner', on=None, left_on=None, right_on=None,left_ind
 # on：表示左右表的连接主键，两个表的主键名称一致的时候才可以使用 on 参数，不一致时需使用left_on，right_on参数， on 参数默认为None，可接收的数据类型为 str 或 sequence ；
 # left_on，right_on：分别表示左表和右表的连接主键，默认为None，可接收的数据类型为 str 或 sequence ；
 # sort：表示是否对合并后的数据进行排序，默认为False，可接收的数据类型为boolean ；
+
+# 按行读取
+for row in df.itertuples()
+
+# 去重
+df.duplicated()#返回是否重复
+df.drop_duplicates()#去重
+df.drop_duplicates(['col1','col2'])#对col1&col2两列去重
 ```
 # 数据预处理
+
+### 标准化
+
 `sklearn.preprocessing.MinMaxScaler()`：归一到 [ 0，1 ] 
 
 `sklearn.preprocessing.MaxAbsScaler()`：归一到 [ -1，1 ] 
 
 `sklearn.preprocessing.scale()`：标准化（均值0方差1）
+
+### 去重
 
 在Pandas中，`.duplicated()`表示找出重复的行，默认是判断全部列，返回布尔类型的结果。对于完全没有重复的行，返回 False，对于有重复的行，第一次出现的那一行返回 False，其余的返回 True。
 
@@ -79,6 +91,20 @@ data[u'工资'][(data[u'工资']<1000) | (data[u'工资']>100000)] = None
 #清空后用均值插补
 data.fillna(data.mean())
 ```
+
+### 分割
+
+```python
+from sklearn.model_selection import KFold, train_test_split
+# K-Fold
+kf = KFold(n_splits=5,shuffle=False)
+for train_index, test_index in kf.split(x):
+    print(train_index,test_index)
+# 随机划分
+x_train, x_test, y_train，y_test = train_test_split(x, y, test_size=0.25, ramdon_state=0)
+```
+
+
 
 # 缺失值填充方法
 
