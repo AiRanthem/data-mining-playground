@@ -1,4 +1,5 @@
 # 学习数据挖掘时的一些项目实验和笔记
+**WARNING: 一般在实验DDL前后进行push，抄作业的同学如果急请QQ上CUE我**
 > 环境：一般使用anaconda的base环境即可。
 
 1. [数据预处理与可视化](./preprocess%20and%20visualization)
