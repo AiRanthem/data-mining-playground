@@ -5,7 +5,9 @@
 *.docx
 .idea
 *.zip
-
+*.pdf
+.vscode
+*.html
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
